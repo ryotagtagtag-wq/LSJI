@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
-[![npm](https://img.shields.io/npm/v/lsji.svg)](https://www.npmjs.com/package/lsji)
+[![npm](https://img.shields.io/npm/v/@game_ryo/lsji.svg)](https://www.npmjs.com/package/@game_ryo/lsji)
 
 ## Overview
 
