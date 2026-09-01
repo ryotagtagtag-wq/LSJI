@@ -1,6 +1,6 @@
 {
   "name": "@game_ryo/lsji",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "A general-purpose reinforcement learning agent framework (Node.js) with LLM agent capabilities",
   "license": "Apache-2.0",
   "type": "module",
