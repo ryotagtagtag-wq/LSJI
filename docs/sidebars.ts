@@ -4,6 +4,8 @@ const sidebars: SidebarsConfig = {
   tutorialSidebar: [
     'getting-started',
     'core-concepts',
+    'runtime-server',
+    'plugins',
     {
       type: 'category',
       label: 'API Reference',

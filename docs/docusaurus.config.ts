@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'LSJI',
-  tagline: 'Learning System for JavaScript Intelligence',
+  tagline: 'Language Service JavaScript Interface — Antigravity-level agentic autonomy meets the ultimate simplicity of self-hosting.',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -91,6 +91,14 @@ const config: Config = {
             {
               label: 'CLI Reference',
               to: '/docs/cli',
+            },
+            {
+              label: 'Runtime Server',
+              to: '/docs/runtime-server',
+            },
+            {
+              label: 'Plugins',
+              to: '/docs/plugins',
             },
           ],
         },
