@@ -60,7 +60,7 @@ const config: Config = {
       title: 'LSJI',
       logo: {
         alt: 'LSJI Logo',
-        src: 'img/logo.svg',
+        src: 'img/logo.png',
       },
       items: [
         {
