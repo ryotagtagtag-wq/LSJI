@@ -1,0 +1,23 @@
+# Documentation
+docs/
+
+# Legacy files
+legacy/
+
+# Database files
+*.db
+*.db-journal
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/

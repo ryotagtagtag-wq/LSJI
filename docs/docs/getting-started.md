@@ -14,7 +14,7 @@ description: Install LSJI and run your first RL agent
 
 ```bash
 # Install as a library
-npm install lsji
+npm install @game_ryo/lsji
 
 # Or use CLI directly with npx
 npx lsji --help
