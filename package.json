@@ -1,0 +1,26 @@
+{
+  "name": "lsji",
+  "version": "0.1.0",
+  "description": "A general-purpose reinforcement learning agent framework (Node.js)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./storage": "./src/storage/index.js"
+  },
+  "bin": {
+    "lsji": "./bin/lsji.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "echo 'No build step required (ESM)'",
+    "lint": "echo 'No linter configured'"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  }
+}
