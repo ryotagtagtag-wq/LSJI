@@ -105,6 +105,10 @@ export async function createProvider(config) {
       const { AnthropicProvider } = await import('./anthropic.js');
       return new AnthropicProvider(options);
     }
+    case 'gemini': {
+      const { GeminiProvider } = await import('./gemini.js');
+      return new GeminiProvider(options);
+    }
     case 'local':
     case 'ollama': {
       const { LocalProvider } = await import('./local.js');

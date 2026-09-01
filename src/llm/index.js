@@ -3,7 +3,7 @@
  * 
  * Exports all LLM agent components:
  * - LLMAgent: Main agent class
- * - Providers: OpenAI, Anthropic, Local
+ * - Providers: OpenAI, Anthropic, Gemini, Local
  * - Tools: Registry and built-in tools
  * - Memory: Conversation, Semantic, Episodic
  * - PromptManager: Template management
@@ -13,6 +13,7 @@ export { LLMAgent, createLLMAgent } from './llm-agent.js';
 export { LLMProvider, createProvider } from './providers/base.js';
 export { OpenAIProvider } from './providers/openai.js';
 export { AnthropicProvider } from './providers/anthropic.js';
+export { GeminiProvider } from './providers/gemini.js';
 export { LocalProvider } from './providers/local.js';
 export { ToolRegistry, createToolRegistry } from './tools/registry.js';
 export { ConversationMemory, createConversationMemory } from './memory/conversation.js';

@@ -64,6 +64,7 @@ export {
   createProvider,
   OpenAIProvider,
   AnthropicProvider,
+  GeminiProvider,
   LocalProvider,
   ToolRegistry,
   createToolRegistry,

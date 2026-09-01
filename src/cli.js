@@ -591,9 +591,9 @@ Usage: lsji <command> [options]
   --hand <num>            Your hand: 0=Rock, 1=Scissors, 2=Paper
 
 === LLM Agent Options ===
-  --provider <name>       LLM provider: openai, anthropic, local (default: openai)
-  --model <name>          Model name (default: gpt-4o-mini)
-  --api-key <key>         API key (or use OPENAI_API_KEY env)
+  --provider <name>       LLM provider: openai, anthropic, gemini, local (default: openai)
+  --model <name>          Model name (default: gpt-4o-mini, gemini: gemini-1.5-flash)
+  --api-key <key>         API key (or use OPENAI_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY env)
   --max-cost <num>        Max cost per run USD (default: 10)
   --max-tokens <num>      Max tokens per run (default: 100000)
   --hitl <true|false>     Enable HITL (default: true)
