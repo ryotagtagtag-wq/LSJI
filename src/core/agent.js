@@ -13,26 +13,25 @@ import { QLearning } from './qlearning.js';
  * @typedef {Object} AgentConfig
  * @property {QLearning} qlearning - Q-Learning engine
  * @property {Storage} storage - Storage backend
- * @property {Env} [env] - Environment (optional, for play mode)
+ * @property {Env} [env] - Environment (optional, for play/train modes)
  */
 
 /**
  * Training result
  * @typedef {Object} TrainResult
  * @property {number} episodes - Number of episodes completed
- * @property {number} wins - Number of wins
- * @property {number} losses - Number of losses
- * @property {number} draws - Number of draws
+ * @property {number} wins - Number of wins (reward > 0)
+ * @property {number} losses - Number of losses (reward < 0)
+ * @property {number} draws - Number of draws (reward = 0)
  */
 
 /**
  * Play result
  * @typedef {Object} PlayResult
- * @property {number} aiHand - AI's chosen action
- * @property {number} userHand - User's action
- * @property {'AI_WIN'|'USER_WIN'|'DRAW'} outcome - Game outcome
- * @property {string} aiHandName - Human-readable AI hand
- * @property {string} userHandName - Human-readable user hand
+ * @property {number} action - Agent's chosen action
+ * @property {number} reward - Reward received
+ * @property {boolean} done - Whether episode ended
+ * @property {Object} info - Additional info from environment
  */
 
 /**
@@ -115,20 +114,13 @@ export class Agent {
   /**
    * Train the agent with specified episodes
    * 
-   * Migrated from worker.js /train endpoint.
-   * Supports different training patterns:
-   * - pattern 0: Random actions
-   * - pattern 1: Always action 0 (Rock)
-   * - pattern 2: Counter previous action
-   * - pattern 3: Sequential actions
-   * 
    * @param {Object} options
    * @param {number} [options.episodes=200] - Number of training episodes
-   * @param {number} [options.pattern=0] - Training pattern (0-3)
+   * @param {Function} [options.actionSelector] - Function(episode, lastAction) -> action
    * @param {number} [options.batchSize=200] - Batch size for DB operations
    * @returns {Promise<TrainResult>}
    */
-  async train({ episodes = 200, pattern = 0, batchSize = 200 } = {}) {
+  async train({ episodes = 200, actionSelector = null, batchSize = 200 } = {}) {
     await this.checkActive();
     if (!this.isActive) {
       throw new Error('System is paused. Use start() first.');
@@ -139,47 +131,38 @@ export class Agent {
 
     let wins = 0, losses = 0, draws = 0;
     const batchOperations = [];
+    let lastAction = 0;
 
     for (let i = 0; i < episodes; i++) {
-      // Determine action based on pattern (from original worker.js)
+      // Determine action - use custom selector or default to random
       let action;
-      switch (pattern) {
-        case 1: action = 0; break; // Always Rock
-        case 2: // Counter previous
-          action = i === 0 ? 0 : (this.lastAction + 2) % 3;
-          break;
-        case 3: // Sequential
-          action = i % 3;
-          break;
-        case 0: // Random
-        default:
-          action = Math.floor(Math.random() * 3);
+      if (actionSelector) {
+        action = actionSelector(i, lastAction);
+      } else {
+        action = Math.floor(Math.random() * this.env.actionSize());
       }
-      this.lastAction = action;
+      lastAction = action;
 
-      // Get current state (opponent's last action in test mode)
+      // Get current state
       const state = await this.env.getState() || '0';
       
       // Execute action in environment
       const result = await this.env.step(action);
       
-      // Calculate reward (win=1, lose=-1, draw=0)
-      // Original worker.js: judge = (aiHand - userHand + 3) % 3
-      // judge 2 = win (1), judge 1 = lose (-1), judge 0 = draw (0)
+      // Track reward
       const reward = result.reward;
-      
       if (reward > 0) wins++;
       else if (reward < 0) losses++;
       else draws++;
 
-      // Q-learning update (original uses simple update for terminal states)
+      // Q-learning update
       await this.qlearning.learnSimple(state, action, reward);
 
       // Batch database operations
       batchOperations.push(this.storage.addBattle({
         mode: 'train',
         handA: action,
-        handB: result.userAction ?? 0,
+        handB: result.info?.opponentAction ?? 0,
         reward,
         createdAt: new Date().toISOString()
       }));
@@ -200,15 +183,14 @@ export class Agent {
   }
 
   /**
-   * Play a single game against the agent
+   * Play a single step against the agent
+   * Uses epsilon-greedy policy for action selection.
    * 
-   * Migrated from worker.js /play endpoint.
-   * Uses epsilon-greedy policy (10% exploration).
-   * 
-   * @param {number} userHand - User's action (0=Rock, 1=Scissors, 2=Paper)
+   * @param {Object} [options] - Play options
+   * @param {number} [options.userAction] - Optional user action (for envs that need it)
    * @returns {Promise<PlayResult>}
    */
-  async play(userHand) {
+  async play(options = {}) {
     await this.checkActive();
     if (!this.isActive) {
       throw new Error('System is paused. Use start() first.');
@@ -217,44 +199,33 @@ export class Agent {
       throw new Error('Environment is required for play mode');
     }
 
-    // Get current state (opponent's last test action)
+    // Get current state
     const state = await this.env.getState() || '0';
     const actionSize = this.env.actionSize();
 
-    // Epsilon-greedy action selection (10% random)
-    const aiHand = await this.qlearning.act(state, actionSize);
+    // Epsilon-greedy action selection
+    const action = await this.qlearning.act(state, actionSize);
 
     // Execute in environment
-    const result = await this.env.step(aiHand);
-    
-    // Calculate reward
-    // judge = (aiHand - userHand + 3) % 3
-    // 2 = win, 1 = lose, 0 = draw
-    const judge = (aiHand - userHand + 3) % 3;
-    const reward = judge === 2 ? 1 : judge === 1 ? -1 : 0;
+    const result = await this.env.step(action);
 
-    // Update Q-table (original worker.js style)
-    await this.qlearning.learnSimple(state, aiHand, reward);
+    // Update Q-table
+    await this.qlearning.learnSimple(state, action, result.reward);
 
     // Record battle
     await this.storage.addBattle({
       mode: 'test',
-      handA: aiHand,
-      handB: userHand,
-      reward,
+      handA: action,
+      handB: result.info?.opponentAction ?? options.userAction ?? 0,
+      reward: result.reward,
       createdAt: new Date().toISOString()
     });
 
-    // Human-readable names
-    const handNames = ['Rock', 'Scissors', 'Paper'];
-    const outcome = judge === 2 ? 'AI_WIN' : judge === 1 ? 'USER_WIN' : 'DRAW';
-
     return {
-      aiHand,
-      userHand,
-      outcome,
-      aiHandName: handNames[aiHand],
-      userHandName: handNames[userHand]
+      action,
+      reward: result.reward,
+      done: result.done,
+      info: result.info
     };
   }
 

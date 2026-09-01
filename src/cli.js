@@ -8,53 +8,10 @@
 import { Agent } from './core/agent.js';
 import { QLearning } from './core/qlearning.js';
 import { createStorage } from './storage/index.js';
-import { Env } from './core/env.js';
+import { RockPaperScissorsEnv, TrainingPattern, getTrainingAction } from './envs/rps.js';
 
 // Hand names for display
 const HAND_NAMES = ['Rock', 'Scissors', 'Paper'];
-
-/**
- * Simple test environment for CLI (Rock-Paper-Scissors)
- * Uses a simple random opponent for demonstration
- */
-class SimpleRPSEnv extends Env {
-  constructor() {
-    super();
-    this.lastTestHand = 0;
-  }
-
-  getState() {
-    return String(this.lastTestHand);
-  }
-
-  async step(action) {
-    // Random opponent action
-    const userAction = Math.floor(Math.random() * 3);
-    
-    // Calculate reward (from agent's perspective)
-    const judge = (action - userAction + 3) % 3;
-    const reward = judge === 2 ? 1 : judge === 1 ? -1 : 0;
-    
-    // Store for next state
-    this.lastTestHand = userAction;
-    
-    return {
-      state: String(userAction),
-      reward,
-      done: false,
-      info: { userAction }
-    };
-  }
-
-  actionSize() {
-    return 3;
-  }
-
-  async reset() {
-    this.lastTestHand = 0;
-    return '0';
-  }
-}
 
 /**
  * Parse command line arguments
@@ -129,8 +86,9 @@ export async function main() {
     storage
   });
   
-  // Create environment (simple RPS for now)
-  const env = new SimpleRPSEnv();
+  // Create environment (Rock-Paper-Scissors)
+  const opponent = options.opponent || 'random';
+  const env = new RockPaperScissorsEnv({ opponent });
   
   // Create agent
   const agent = new Agent({ qlearning, storage, env });
@@ -142,8 +100,14 @@ export async function main() {
         const pattern = parseInt(options.pattern) || 0;
         const batchSize = parseInt(options.batchSize) || 200;
         
-        console.log(`Training: ${episodes} episodes, pattern=${pattern}...`);
-        const result = await agent.train({ episodes, pattern, batchSize });
+        // Create action selector based on pattern
+        let actionSelector = null;
+        if (pattern > 0) {
+          actionSelector = (episode, lastAction) => getTrainingAction(pattern, episode, lastAction);
+        }
+        
+        console.log(`Training: ${episodes} episodes, pattern=${pattern}, opponent=${opponent}...`);
+        const result = await agent.train({ episodes, actionSelector, batchSize });
         console.log('Training complete:', result);
         break;
       }
@@ -155,11 +119,42 @@ export async function main() {
           process.exit(1);
         }
         
-        const result = await agent.play(hand);
+        // For play, we need to pass the user's hand to the environment
+        // The RPS env uses its own opponent strategy, so we'll use a custom approach
+        const state = await env.getState() || '0';
+        const actionSize = env.actionSize();
+        const aiHand = await qlearning.act(state, actionSize);
+        
+        // Calculate outcome manually for display
+        const { judge, reward, outcome } = RockPaperScissorsEnv.calculateOutcome(aiHand, hand);
+        
+        // Step the environment with AI's action (to update state and Q-table)
+        const result = await env.step(aiHand);
+        
+        // Update Q-table with actual result
+        await qlearning.learnSimple(state, aiHand, result.reward);
+        
+        // Record battle
+        await storage.addBattle({
+          mode: 'test',
+          handA: aiHand,
+          handB: hand,
+          reward: result.reward,
+          createdAt: new Date().toISOString()
+        });
+        
+        const playResult = {
+          aiHand,
+          userHand: hand,
+          outcome,
+          aiHandName: RockPaperScissorsEnv.getHandName(aiHand),
+          userHandName: RockPaperScissorsEnv.getHandName(hand)
+        };
+        
         if (jsonOutput) {
-          output(result, true);
+          output(playResult, true);
         } else {
-          console.log(`You: ${result.userHandName} | AI: ${result.aiHandName} => ${result.outcome}`);
+          console.log(`You: ${playResult.userHandName} | AI: ${playResult.aiHandName} => ${playResult.outcome}`);
         }
         break;
       }
@@ -205,11 +200,13 @@ Options:
   --alpha <number>     Learning rate (default: 0.1)
   --gamma <number>     Discount factor (default: 0.9)
   --epsilon <number>   Exploration rate (default: 0.1)
+  --opponent <type>    Opponent strategy: random, always_rock, counter, sequential (default: random)
   --json               Output as JSON
 
 Train options:
   --episodes <number>  Number of episodes (default: 200)
   --pattern <number>   Training pattern 0-3 (default: 0)
+                       0=random, 1=always_rock, 2=counter, 3=sequential
   --batch-size <number> Batch size for DB (default: 200)
 
 Play options:
@@ -217,6 +214,7 @@ Play options:
 
 Examples:
   lsji train --episodes 500
+  lsji train --episodes 100 --pattern 1 --opponent always_rock
   lsji play --hand 0
   lsji status --json
   lsji start
