@@ -21,6 +21,6 @@
   align-items: center;
   justify-content: center;
 }
-.heroSubtitle {
-  color: #000000;
+.heroSubtitleBlack {
+  color: #000000 !important;
 }
