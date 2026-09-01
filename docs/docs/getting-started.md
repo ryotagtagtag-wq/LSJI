@@ -17,7 +17,7 @@ description: Install LSJI and run your first RL agent
 npm install @game_ryo/lsji
 
 # Or use CLI directly with npx
-npx lsji --help
+npx @game_ryo/lsji --help
 ```
 
 ## Quick Start
@@ -26,32 +26,32 @@ npx lsji --help
 
 ```bash
 # Train with default settings (200 episodes, random pattern)
-npx lsji train --episodes 500
+npx @game_ryo/lsji train --episodes 500
 
 # Train against specific opponent
-npx lsji train --episodes 1000 --opponent counter
+npx @game_ryo/lsji train --episodes 1000 --opponent counter
 ```
 
 ### 2. Play Against the Agent
 
 ```bash
 # Play Rock (0)
-npx lsji play --hand 0
+npx @game_ryo/lsji play --hand 0
 
 # Play Paper (2)
-npx lsji play --hand 2
+npx @game_ryo/lsji play --hand 2
 ```
 
 ### 3. Check Status
 
 ```bash
-npx lsji status --json
+npx @game_ryo/lsji status --json
 ```
 
 ## Using as a Library
 
 ```javascript
-import { Agent, QLearning, createStorage, RockPaperScissorsEnv } from 'lsji';
+import { Agent, QLearning, createStorage, RockPaperScissorsEnv } from '@game_ryo/lsji';
 
 async function main() {
   // Create storage (SQLite recommended for persistence)
