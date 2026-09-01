@@ -33,17 +33,6 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/ryotagtagtag-wq/LSJI/tree/main/docs/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          editUrl: 'https://github.com/ryotagtagtag-wq/LSJI/tree/main/docs/',
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -69,14 +58,13 @@ const config: Config = {
           position: 'left',
           label: 'Docs',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
         {
           href: 'https://github.com/ryotagtagtag-wq/LSJI',
           label: 'GitHub',
           position: 'right',
         },
         {
-          href: 'https://www.npmjs.com/package/lsji',
+          href: 'https://www.npmjs.com/package/@game_ryo/lsji',
           label: 'npm',
           position: 'right',
         },
@@ -123,16 +111,12 @@ const config: Config = {
           title: 'More',
           items: [
             {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
               label: 'GitHub',
               href: 'https://github.com/ryotagtagtag-wq/LSJI',
             },
             {
               label: 'npm',
-              href: 'https://www.npmjs.com/package/lsji',
+              href: 'https://www.npmjs.com/package/@game_ryo/lsji',
             },
           ],
         },
