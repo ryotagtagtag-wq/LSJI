@@ -1,13 +1,10 @@
 {
   "name": "@game_ryo/lsji",
-  "version": "0.1.1",
-  "description": "A general-purpose reinforcement learning agent framework (Node.js)",
+  "version": "0.3.0",
+  "description": "A general-purpose reinforcement learning agent framework (Node.js) with LLM agent capabilities",
   "license": "Apache-2.0",
   "type": "module",
-  "exports": {
-    ".": "./src/index.js",
-    "./storage": "./src/storage/index.js"
-  },
+  "main": "./src/index.js",
   "bin": {
     "lsji": "./bin/lsji.js"
   },
@@ -18,10 +15,19 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "echo 'No build step required (ESM)'",
-    "lint": "echo 'No linter configured'"
+    "build:ui": "cd src/server/ui && npm install && npm run build",
+    "lint": "echo 'No linter configured'",
+    "serve": "node src/server/index.js"
   },
   "devDependencies": {
     "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "openai": "^7.8.0",
+    "socket.io": "^4.7.5",
+    "uuid": "^14.0.2"
   },
   "publishConfig": {
     "access": "public"
