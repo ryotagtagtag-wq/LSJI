@@ -7,5 +7,5 @@ crons = ["*/8 * * * *"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "janken-db"
-database_id = "cc554956-d7c3-4dc2-a6e8-6baee324c0fd" # ここに実際のIDを入れてください
+database_name = "lsji-db"
+database_id = "9ea324c7-419b-4643-ae75-4d60adb7fe36" # ここに実際のIDを入れてください
