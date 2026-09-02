@@ -35,3 +35,4 @@ coverage/
 *.db
 *.sqlite
 *.sqlite3
+spec.html
