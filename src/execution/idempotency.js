@@ -7,6 +7,7 @@
 
 import { createStorage } from '../index.js';
 import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'crypto';
 
 /**
  * Idempotency record
@@ -80,16 +81,39 @@ export class IdempotencyStore {
 
   /**
    * Create hash of request for deduplication
+   * BUG FIX: Use native Web Crypto API instead of require('crypto')
    */
   hashRequest(request) {
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex');
+    const data = JSON.stringify(request);
+    const hashBuffer = createHash('sha256').update(data).digest();
+    return Buffer.from(hashBuffer).toString('hex');
+  }
+
+  /**
+   * Transform database row or memory record to standard format
+   */
+  _transformRecord(record) {
+    return {
+      key: record.key,
+      operation: record.operation,
+      requestHash: record.request_hash || record.requestHash,
+      request: (record.request_data || record.requestData) ? JSON.parse(record.request_data || record.requestData) : null,
+      response: (record.response_data || record.responseData) ? JSON.parse(record.response_data || record.responseData) : null,
+      status: record.status,
+      createdAt: record.created_at || record.createdAt,
+      completedAt: record.completed_at || record.completedAt,
+      expiresAt: record.expires_at || record.expiresAt,
+    };
   }
 
   /**
    * Check if key exists and return cached response
+   * BUG FIX: Added request parameter to verify hash matches
+   * @param {string} key - Idempotency key
+   * @param {Object} [request] - Optional request to verify hash against stored hash
+   * @returns {Promise<Object|null>} Cached record or null
    */
-  async check(key) {
+  async check(key, request = null) {
     await this.initialize();
     
     if (this.isSqlStorage()) {
@@ -99,24 +123,30 @@ export class IdempotencyStore {
       );
       
       if (row) {
-        return {
-          key: row.key,
-          operation: row.operation,
-          requestHash: row.request_hash,
-          request: row.request_data ? JSON.parse(row.request_data) : null,
-          response: row.response_data ? JSON.parse(row.response_data) : null,
-          status: row.status,
-          createdAt: row.created_at,
-          completedAt: row.completed_at,
-          expiresAt: row.expires_at,
-        };
+        // BUG FIX: Verify request hash matches if request provided
+        if (request !== null) {
+          const currentHash = this.hashRequest(request);
+          if (row.request_hash !== currentHash) {
+            // Hash mismatch - different request with same key, treat as new
+            return null;
+          }
+        }
+        
+        return this._transformRecord(row);
       }
     } else {
       // Memory fallback
       if (!this.memoryKeys) this.memoryKeys = new Map();
       const record = this.memoryKeys.get(key);
       if (record && new Date(record.expiresAt) > new Date()) {
-        return record;
+        // BUG FIX: Verify request hash matches if request provided
+        if (request !== null) {
+          const currentHash = this.hashRequest(request);
+          if (record.requestHash !== currentHash) {
+            return null;
+          }
+        }
+        return this._transformRecord(record);
       }
     }
     
@@ -211,10 +241,11 @@ export class IdempotencyStore {
 
   /**
    * Execute operation with idempotency
+   * BUG FIX: Pass request to check() for hash verification
    */
   async execute(key, operation, request, executor) {
-    // Check for existing
-    const existing = await this.check(key);
+    // Check for existing - BUG FIX: Pass request for hash verification
+    const existing = await this.check(key, request);
     if (existing) {
       if (existing.status === 'completed') {
         return { ...existing.response, idempotent: true };
@@ -281,17 +312,7 @@ export class IdempotencyStore {
         'SELECT * FROM idempotency_keys WHERE operation = ? ORDER BY created_at DESC LIMIT ?',
         [operation, limit]
       );
-      return rows.map(r => ({
-        key: r.key,
-        operation: r.operation,
-        requestHash: r.request_hash,
-        request: r.request_data ? JSON.parse(r.request_data) : null,
-        response: r.response_data ? JSON.parse(r.response_data) : null,
-        status: r.status,
-        createdAt: r.created_at,
-        completedAt: r.completed_at,
-        expiresAt: r.expires_at,
-      }));
+      return rows.map(r => this._transformRecord(r));
     }
     
     return [];

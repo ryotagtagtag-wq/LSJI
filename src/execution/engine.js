@@ -6,7 +6,7 @@
  */
 
 import { createStorage } from '../index.js';
-import { IdempotencyStore, createIdempotencyStore } from './idempotency.js';
+import { createIdempotencyStore } from './idempotency.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -185,7 +185,9 @@ export class ExecutionEngine {
       try {
         const stepResult = await stepFn(context);
         results.push({ step: i, success: true, result: stepResult });
-        context = { ...context, [steps[i].name || `step_${i}`]: stepResult };
+        // BUG FIX: Safely access step name
+        const stepName = steps[i].name || `step_${i}`;
+        context = { ...context, [stepName]: stepResult };
       } catch (error) {
         results.push({ step: i, success: false, error: error.message });
         

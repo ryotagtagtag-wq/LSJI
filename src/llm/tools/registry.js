@@ -134,8 +134,11 @@ export class ToolRegistry {
     
     // Execute with idempotency if enabled
     if (tool.idempotent && this.idempotencyStore) {
-      const key = `${name}_${uuidv4()}`;
-      return this.idempotencyStore.execute(key, name, params, () => tool.execute(params, context));
+      // BUG FIX: Use full request object (including tool name) for idempotency key
+      const requestForIdem = { name, params };
+      const requestHash = this.idempotencyStore.hashRequest(requestForIdem);
+      const key = `${name}_${requestHash}`;
+      return this.idempotencyStore.execute(key, name, requestForIdem, () => tool.execute(params, context));
     }
     
     return tool.execute(params, context);

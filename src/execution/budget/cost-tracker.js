@@ -46,6 +46,7 @@ export class CostTracker {
     this.runCosts = new Map(); // budgetId -> accumulated cost
     this.runTokens = new Map(); // budgetId -> accumulated tokens
     this.alerts = [];
+    this.listeners = new Map(); // event -> callbacks
   }
 
   /**
@@ -151,18 +152,52 @@ export class CostTracker {
   }
 
   /**
-   * Trigger alert
+   * Trigger alert - Node.js compatible event emitter pattern
    */
   triggerAlert(type, data) {
     const alert = { type, data, timestamp: new Date() };
     this.alerts.push(alert);
     
-    // Emit event for external handlers
-    if (typeof window !== 'undefined' && window.dispatchEvent) {
-      window.dispatchEvent(new CustomEvent('lsji:budget-alert', { detail: alert }));
-    }
+    // Emit event for external handlers (Node.js compatible)
+    this.emit('alert', alert);
     
     return alert;
+  }
+
+  /**
+   * Add event listener
+   */
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event).push(callback);
+  }
+
+  /**
+   * Remove event listener
+   */
+  off(event, callback) {
+    if (this.listeners.has(event)) {
+      const callbacks = this.listeners.get(event);
+      const index = callbacks.indexOf(callback);
+      if (index >= 0) callbacks.splice(index, 1);
+    }
+  }
+
+  /**
+   * Emit event
+   */
+  emit(event, data) {
+    if (this.listeners.has(event)) {
+      for (const callback of this.listeners.get(event)) {
+        try {
+          callback(data);
+        } catch (e) {
+          console.error(`Cost tracker listener error:`, e);
+        }
+      }
+    }
   }
 
   /**

@@ -24,6 +24,7 @@ export const CircuitState = {
  * @property {number} [timeWindow] - Time window for threshold (ms), default 1 hour
  * @property {number} [resetTimeout] - Time before trying half-open (ms), default 5 min
  * @property {number} [failureThreshold] - Number of failures before opening
+ * @property {CostTracker} [costTracker] - Cost tracker instance (optional, uses global if not provided)
  */
 
 /**
@@ -39,11 +40,13 @@ export class CircuitBreaker {
       failureThreshold: config.failureThreshold || 5,
     };
     
+    // BUG FIX: Allow injecting costTracker instead of hardcoding global
+    this.costTracker = config.costTracker || globalCostTracker;
+    
     this.state = CircuitState.CLOSED;
     this.failureCount = 0;
     this.lastFailureTime = null;
     this.lastStateChange = Date.now();
-    this.costTracker = globalCostTracker;
     this.listeners = new Map(); // event -> callbacks
   }
 

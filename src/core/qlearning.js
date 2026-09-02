@@ -122,11 +122,15 @@ export class QLearning {
     const currentQ = this.getQValue(state, action);
     
     // Find max Q-value for next state
-    let maxNextQ = 0;
+    // BUG FIX: Initialize to -Infinity to correctly handle negative Q-values
+    let maxNextQ = -Infinity;
     for (let a = 0; a < nextActionSize; a++) {
       const q = this.getQValue(nextState, a);
       if (q > maxNextQ) maxNextQ = q;
     }
+    
+    // Handle case where all Q-values are unseen (0)
+    if (maxNextQ === -Infinity) maxNextQ = 0;
     
     // TD update: Q(s,a) = Q(s,a) + alpha * (reward + gamma * max Q(s',a') - Q(s,a))
     const target = reward + this.gamma * maxNextQ;
