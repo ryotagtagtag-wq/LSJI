@@ -2,7 +2,7 @@
 
 > **Antigravity-level agentic autonomy meets the ultimate simplicity of self-hosting.**
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green.svg)](https://nodejs.org/)
 [![npm](https://img.shields.io/npm/v/@game_ryo/lsji.svg)](https://www.npmjs.com/package/@game_ryo/lsji)
 
@@ -178,11 +178,11 @@ Environment variables:
 
 - [ ] **v0.4** — Multi-agent orchestration, A2A protocol
 - [ ] **v0.5** — WASM sandbox for code_exec, vector memory
-- [ ] **v1.0** — ASF incubation, stability guarantees
+- [ ] **v1.0** — Linux Foundation Sandbox, stability guarantees
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 Copyright 2026 ryopc org
 
