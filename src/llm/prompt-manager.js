@@ -34,8 +34,9 @@ export class PromptManager {
   async initialize() {
     if (this.initialized) return;
     
-    if (this.storage.db) {
-      await this.storage.db.exec(`
+    // Use the new storage interface
+    if (typeof this.storage.exec === 'function') {
+      await this.storage.exec(`
         CREATE TABLE IF NOT EXISTS prompts (
           name TEXT NOT NULL,
           version TEXT NOT NULL,
@@ -78,8 +79,8 @@ export class PromptManager {
     this.templates.get(name).set(version, prompt);
     
     // Persist
-    if (this.storage.db) {
-      await this.storage.db.run(
+    if (typeof this.storage.run === 'function') {
+      await this.storage.run(
         `INSERT OR REPLACE INTO prompts (name, version, template, variables, description, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [name, version, template, JSON.stringify(extractedVars), description, prompt.createdAt, prompt.updatedAt]
@@ -102,18 +103,14 @@ export class PromptManager {
       return versions.get(version) || null;
     }
     
-    // Get latest version
-    const sortedVersions = Array.from(versions.keys()).sort((a, b) => {
-      const parseVersion = v => v.split('.').map(Number);
-      const va = parseVersion(a);
-      const vb = parseVersion(b);
-      for (let i = 0; i < 3; i++) {
-        if (va[i] !== vb[i]) return vb[i] - va[i];
+    // Return latest version (highest semver)
+    let latest = null;
+    for (const [ver, prompt] of versions) {
+      if (!latest || this.compareVersions(ver, latest) > 0) {
+        latest = ver;
       }
-      return 0;
-    });
-    
-    return versions.get(sortedVersions[0]) || null;
+    }
+    return versions.get(latest);
   }
 
   /**
@@ -123,110 +120,79 @@ export class PromptManager {
     await this.initialize();
     const versions = this.templates.get(name);
     if (!versions) return [];
-    return Array.from(versions.values()).sort((a, b) => 
-      new Date(b.createdAt) - new Date(a.createdAt)
-    );
+    return Array.from(versions.values());
   }
 
   /**
-   * Render a prompt with variables
+   * Render a template with variables
    */
-  async render(name, variables, version = null) {
+  async render(name, variables = {}, version = null) {
     const prompt = await this.get(name, version);
     if (!prompt) {
       throw new Error(`Prompt not found: ${name}${version ? `@${version}` : ''}`);
     }
     
-    // Check required variables
-    for (const v of prompt.variables) {
-      if (!(v in variables)) {
-        throw new Error(`Missing required variable: ${v}`);
-      }
-    }
-    
-    // Substitute variables
     let rendered = prompt.template;
     for (const [key, value] of Object.entries(variables)) {
-      const placeholder = `{{${key}}}`;
-      rendered = rendered.replaceAll(placeholder, String(value));
+      rendered = rendered.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    }
+    
+    // Check for missing variables
+    const missingVars = prompt.variables.filter(v => !(v in variables));
+    if (missingVars.length > 0) {
+      console.warn(`Missing variables for prompt ${name}: ${missingVars.join(', ')}`);
     }
     
     return rendered;
   }
 
   /**
-   * Render multiple prompts (for system + user messages)
-   */
-  async renderAll(prompts, variables) {
-    const results = [];
-    for (const { name, version, role = 'user' } of prompts) {
-      const content = await this.render(name, variables, version);
-      results.push({ role, content });
-    }
-    return results;
-  }
-
-  /**
    * Extract variables from template
    */
   extractVariables(template) {
-    const matches = template.match(/{{(\w+)}}/g);
+    const matches = template.match(/\{\{(\w+)\}\}/g);
     if (!matches) return [];
     return [...new Set(matches.map(m => m.slice(2, -2)))];
   }
 
   /**
-   * List all prompt names
+   * Compare semantic versions
    */
-  async list() {
-    await this.initialize();
-    return Array.from(this.templates.keys());
-  }
-
-  /**
-   * Delete a prompt version
-   */
-  async delete(name, version) {
-    await this.initialize();
-    
-    const versions = this.templates.get(name);
-    if (!versions || !versions.has(version)) {
-      return false;
-    }
-    
-    versions.delete(version);
-    
-    if (this.storage.db) {
-      await this.storage.db.run(
-        'DELETE FROM prompts WHERE name = ? AND version = ?',
-        [name, version]
-      );
-    }
-    
-    return true;
+  compareVersions(a, b) {
+    const parse = v => v.split('.').map(Number);
+    const [aMajor, aMinor, aPatch] = parse(a);
+    const [bMajor, bMinor, bPatch] = parse(b);
+    if (aMajor !== bMajor) return aMajor - bMajor;
+    if (aMinor !== bMinor) return aMinor - bMinor;
+    return aPatch - bPatch;
   }
 
   /**
    * Load all prompts from storage
    */
-  async loadAll() {
+  async loadFromStorage() {
     await this.initialize();
     
-    if (this.storage.db) {
-      const rows = await this.storage.db.all('SELECT * FROM prompts');
+    if (typeof this.storage.all === 'function') {
+      const rows = await this.storage.all(
+        'SELECT * FROM prompts ORDER BY name, version'
+      );
+      
       for (const row of rows) {
-        if (!this.templates.has(row.name)) {
-          this.templates.set(row.name, new Map());
-        }
-        this.templates.get(row.name).set(row.version, {
+        const prompt = {
           name: row.name,
           version: row.version,
           template: row.template,
-          variables: JSON.parse(row.variables || '[]'),
+          variables: JSON.parse(row.variables),
           description: row.description,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
-        });
+        };
+        
+        if (!this.templates.has(prompt.name)) {
+          this.templates.set(prompt.name, new Map());
+        }
+        this.templates.get(prompt.name).set(prompt.version, prompt);
       }
     }
   }
@@ -237,79 +203,31 @@ export class PromptManager {
  */
 export const BUILTIN_PROMPTS = {
   'system:react': {
-    template: `You are an AI assistant that uses the ReAct pattern (Reasoning + Acting) to solve tasks.
+    name: 'system:react',
+    version: '1.0.0',
+    template: `You are an AI assistant that uses the ReAct (Reasoning + Acting) pattern.
 
 You have access to the following tools:
 {{tools}}
 
-When you need to use a tool, respond with:
+Your task is: {{task}}
+
+Use the following format:
+
 THOUGHT: Your reasoning about what to do next
-ACTION: The tool name to use
+ACTION: The tool to use (must be one of the available tools)
 ACTION_INPUT: The parameters for the tool
 
-After the tool returns, you'll see:
-OBSERVATION: The result
+When you have the final answer, respond directly without THOUGHT/ACTION format.
 
-Continue this pattern until you can provide the final answer.
-
-Current task: {{task}}`,
+Begin!`,
     variables: ['tools', 'task'],
-    description: 'ReAct system prompt with tool definitions',
-  },
-  
-  'system:planner': {
-    template: `You are a planning agent. Break down the task into a sequence of steps.
-
-Task: {{task}}
-
-Available tools: {{tools}}
-
-Create a plan with numbered steps. Each step should specify:
-1. What tool to use (if any)
-2. What parameters to pass
-3. What you expect to learn or achieve
-
-Output as JSON:
-{
-  "steps": [
-    {"step": 1, "tool": "tool_name", "params": {}, "description": "..."}
-  ]
-}`,
-    variables: ['task', 'tools'],
-    description: 'Planning agent prompt',
-  },
-  
-  'system:code-reviewer': {
-    template: `You are an expert code reviewer. Analyze the provided code for:
-- Bugs and logic errors
-- Security vulnerabilities
-- Performance issues
-- Code style and best practices
-- Test coverage gaps
-
-Code to review:
-{{code}}
-
-Context: {{context}}
-
-Provide your review in this format:
-## Summary
-Brief overall assessment
-
-## Issues Found
-- [Severity] File:Line - Description
-
-## Suggestions
-- Improvement suggestions
-
-## Approved: true/false`,
-    variables: ['code', 'context'],
-    description: 'Code review prompt',
+    description: 'System prompt for ReAct agent',
   },
 };
 
 /**
- * Create prompt manager with built-in templates
+ * Create prompt manager from config
  */
 export async function createPromptManager(config = {}) {
   const storage = await createStorage(
@@ -323,6 +241,7 @@ export async function createPromptManager(config = {}) {
   // Register built-in prompts
   for (const [name, prompt] of Object.entries(BUILTIN_PROMPTS)) {
     await manager.register(name, prompt.template, {
+      version: prompt.version,
       variables: prompt.variables,
       description: prompt.description,
     });

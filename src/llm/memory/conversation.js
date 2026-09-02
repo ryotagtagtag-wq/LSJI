@@ -37,8 +37,9 @@ export class ConversationMemory {
   async initialize() {
     if (this.initialized) return;
     
-    if (this.storage.db) {
-      await this.storage.db.exec(`
+    // Use the new storage interface method
+    if (typeof this.storage.exec === 'function') {
+      await this.storage.exec(`
         CREATE TABLE IF NOT EXISTS conversations (
           id TEXT PRIMARY KEY,
           session_id TEXT NOT NULL,
@@ -52,11 +53,11 @@ export class ConversationMemory {
         )
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_conversations_session ON conversations(session_id)
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_conversations_created ON conversations(created_at)
       `);
     }
@@ -86,8 +87,8 @@ export class ConversationMemory {
   async loadSession(sessionId) {
     await this.initialize();
     
-    if (this.storage.db) {
-      const rows = await this.storage.db.all(
+    if (typeof this.storage.all === 'function') {
+      const rows = await this.storage.all(
         'SELECT * FROM conversations WHERE session_id = ? ORDER BY created_at ASC',
         [sessionId]
       );
@@ -123,12 +124,12 @@ export class ConversationMemory {
     this.messages.push(msg);
     
     // Persist to storage
-    if (this.storage.db && this.sessionId) {
+    if (typeof this.storage.run === 'function' && this.sessionId) {
       const tokens = this.tokenCounter 
         ? await this.tokenCounter.estimateTokens([msg], { provider: 'openai', model: 'gpt-4o-mini' })
         : 0;
       
-      await this.storage.db.run(
+      await this.storage.run(
         `INSERT INTO conversations (id, session_id, role, content, name, tool_call_id, tool_calls, tokens, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -229,8 +230,8 @@ export class ConversationMemory {
   async clear() {
     this.messages = [];
     
-    if (this.storage.db && this.sessionId) {
-      await this.storage.db.run(
+    if (typeof this.storage.run === 'function' && this.sessionId) {
+      await this.storage.run(
         'DELETE FROM conversations WHERE session_id = ?',
         [this.sessionId]
       );

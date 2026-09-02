@@ -280,7 +280,7 @@ export function createApp(config = {}) {
     connectedClients.add(socket.id);
     console.log(`Client connected: ${socket.id} (total: ${connectedClients.size})`);
 
-    // Send current state - use Promise.all for async operations
+    // Send current state
     Promise.all(
       Array.from(activeRuns.entries()).map(async ([runId, run]) => {
         const approvals = await run.hitl.getPendingApprovals(50);
@@ -316,12 +316,7 @@ export function createApp(config = {}) {
     });
   });
 
-  // Broadcast helper
-  function broadcast(event, data) {
-    io.emit(event, data);
-  }
-
-  return { app, httpServer, io, broadcast, activeRuns };
+  return { app, httpServer, io, activeRuns };
 }
 
 /**
@@ -362,7 +357,7 @@ async function runAgent(runId, task, hitlGate, budgetCtrl, workflowId, io) {
     io.to(`run:${runId}`).emit('thought:new', run.thoughts[run.thoughts.length - 1]);
     
     io.to(`run:${runId}`).emit('run:completed', { runId, result });
-    broadcast('run:updated', { runId, status: run.status, result });
+    io.emit('run:updated', { runId, status: run.status, result });
     
   } catch (error) {
     run.status = 'error';
@@ -377,7 +372,7 @@ async function runAgent(runId, task, hitlGate, budgetCtrl, workflowId, io) {
     io.to(`run:${runId}`).emit('thought:new', run.thoughts[run.thoughts.length - 1]);
     
     io.to(`run:${runId}`).emit('run:error', { runId, error: error.message });
-    broadcast('run:updated', { runId, status: 'error', error: error.message });
+    io.emit('run:updated', { runId, status: 'error', error: error.message });
   }
 }
 
@@ -385,7 +380,7 @@ async function runAgent(runId, task, hitlGate, budgetCtrl, workflowId, io) {
  * Start the server
  */
 export async function startServer(config = {}) {
-  const { app, httpServer, io, broadcast, activeRuns: runs } = createApp(config);
+  const { app, httpServer, io, activeRuns: runs } = createApp(config);
   
   const port = config.port || process.env.LSJI_SERVER_PORT || 3456;
   const host = config.host || '0.0.0.0';
@@ -394,7 +389,7 @@ export async function startServer(config = {}) {
     httpServer.listen(port, host, () => {
       console.log(`LSJI Server running at http://${host}:${port}`);
       console.log(`WebSocket ready for connections`);
-      resolve({ app, httpServer, io, broadcast, activeRuns: runs, port, host });
+      resolve({ app, httpServer, io, activeRuns: runs, port, host });
     });
   });
 }

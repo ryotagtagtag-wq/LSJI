@@ -120,4 +120,35 @@ export class SqliteStorage extends Storage {
     `);
     return stmt.all();
   }
+
+  // ===== Generic SQL methods =====
+
+  async all(sql, params = []) {
+    const stmt = this.db.prepare(sql);
+    return stmt.all(...params);
+  }
+
+  async get(sql, params = []) {
+    const stmt = this.db.prepare(sql);
+    return stmt.get(...params);
+  }
+
+  async run(sql, params = []) {
+    const stmt = this.db.prepare(sql);
+    const result = stmt.run(...params);
+    return { changes: result.changes, lastInsertRowid: result.lastInsertRowid };
+  }
+
+  async exec(sql) {
+    this.db.exec(sql);
+  }
+
+  prepare(sql) {
+    const stmt = this.db.prepare(sql);
+    return {
+      run: (...params) => stmt.run(...params),
+      get: (...params) => stmt.get(...params),
+      all: (...params) => stmt.all(...params),
+    };
+  }
 }

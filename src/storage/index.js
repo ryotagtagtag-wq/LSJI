@@ -114,6 +114,56 @@ export class Storage {
   async getPerformanceStats() {
     throw new Error('getPerformanceStats() must be implemented');
   }
+
+  // ===== Generic SQL methods for custom queries =====
+
+  /**
+   * Execute a SELECT query returning all rows
+   * @param {string} sql - SQL query
+   * @param {Array} params - Query parameters
+   * @returns {Promise<Array<Object>>}
+   */
+  async all(sql, params = []) {
+    throw new Error('all() must be implemented');
+  }
+
+  /**
+   * Execute a SELECT query returning first row
+   * @param {string} sql - SQL query
+   * @param {Array} params - Query parameters
+   * @returns {Promise<Object|null>}
+   */
+  async get(sql, params = []) {
+    throw new Error('get() must be implemented');
+  }
+
+  /**
+   * Execute an INSERT/UPDATE/DELETE query
+   * @param {string} sql - SQL query
+   * @param {Array} params - Query parameters
+   * @returns {Promise<{changes: number, lastInsertRowid: number|bigint}>}
+   */
+  async run(sql, params = []) {
+    throw new Error('run() must be implemented');
+  }
+
+  /**
+   * Execute multiple SQL statements
+   * @param {string} sql - SQL statements
+   * @returns {Promise<void>}
+   */
+  async exec(sql) {
+    throw new Error('exec() must be implemented');
+  }
+
+  /**
+   * Prepare a statement for repeated execution
+   * @param {string} sql - SQL query
+   * @returns {Object} Prepared statement with run(), get(), all() methods
+   */
+  prepare(sql) {
+    throw new Error('prepare() must be implemented');
+  }
 }
 
 /**

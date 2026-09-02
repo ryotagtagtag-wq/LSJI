@@ -14,7 +14,7 @@ import { createPromptManager } from './prompt-manager.js';
 import { createExecutionEngine } from '../execution/engine.js';
 import { createApprovalGate } from '../execution/hitl/approval-gate.js';
 import { createBudgetController } from '../execution/budget/index.js';
-import { IdempotencyStore } from '../execution/idempotency.js';
+import { createIdempotencyStore } from '../execution/idempotency.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -27,6 +27,8 @@ import { v4 as uuidv4 } from 'uuid';
  * @property {Object} [hitl] - HITL approval config
  * @property {Object} [budget] - Budget control config
  * @property {Object} [idempotency] - Idempotency config
+ * @property {Object} [prompts] - Prompt manager config
+ * @property {string} [sessionId] - Session ID for conversation memory
  */
 
 /**
@@ -95,7 +97,7 @@ export class LLMAgent {
     this.budget = createBudgetController(this.config.budget);
     
     // Initialize idempotency
-    this.idempotency = await IdempotencyStore.create(this.config.idempotency);
+    this.idempotency = await createIdempotencyStore(this.config.idempotency);
     this.tools.idempotencyStore = this.idempotency;
     
     // Initialize prompt manager
