@@ -63,6 +63,9 @@ export class LLMAgent {
       throw new Error(`LLM validation failed: ${valid.error}`);
     }
     
+    // Get storage config
+    const storageConfig = this.config.storage || { type: 'sqlite', options: {} };
+    
     // Initialize tool registry
     this.tools = createToolRegistry({
       idempotencyStore: this.idempotency,
@@ -71,24 +74,39 @@ export class LLMAgent {
     
     // Initialize memory systems
     if (this.config.memory?.conversation !== false) {
-      this.memory.conversation = await createConversationMemory(this.config.memory?.conversation);
+      this.memory.conversation = await createConversationMemory({
+        ...this.config.memory?.conversation,
+        storage: storageConfig
+      });
       await this.memory.conversation.startSession(this.config.sessionId);
     }
     
     if (this.config.memory?.semantic) {
-      this.memory.semantic = await createSemanticMemory(this.config.memory.semantic);
+      this.memory.semantic = await createSemanticMemory({
+        ...this.config.memory.semantic,
+        storage: storageConfig
+      });
     }
     
     if (this.config.memory?.episodic) {
-      this.memory.episodic = await createEpisodicMemory(this.config.memory.episodic);
+      this.memory.episodic = await createEpisodicMemory({
+        ...this.config.memory.episodic,
+        storage: storageConfig
+      });
     }
     
     // Initialize execution engine
-    this.execution = await createExecutionEngine(this.config.execution);
+    this.execution = await createExecutionEngine({
+      ...this.config.execution,
+      storage: storageConfig
+    });
     
     // Initialize HITL
     if (this.config.hitl?.enabled !== false) {
-      this.hitl = await createApprovalGate(this.config.hitl);
+      this.hitl = await createApprovalGate({
+        ...this.config.hitl,
+        store: storageConfig
+      });
       // Update tool registry with HITL
       this.tools.approvalGate = this.hitl;
     }
@@ -97,7 +115,10 @@ export class LLMAgent {
     this.budget = createBudgetController(this.config.budget);
     
     // Initialize idempotency
-    this.idempotency = await createIdempotencyStore(this.config.idempotency);
+    this.idempotency = await createIdempotencyStore({
+      ...this.config.idempotency,
+      ...storageConfig
+    });
     this.tools.idempotencyStore = this.idempotency;
     
     // Initialize prompt manager

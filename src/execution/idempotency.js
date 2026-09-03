@@ -323,9 +323,11 @@ export class IdempotencyStore {
  * Create idempotency store from config
  */
 export async function createIdempotencyStore(config = {}) {
+  // Support both config.storage and config.type/config.options for storage configuration
+  const storageConfig = config.storage || { type: config.type || 'sqlite', options: config.options || {} };
   const storage = await createStorage(
-    config.type || 'sqlite',
-    config.options || {}
+    storageConfig.type || 'sqlite',
+    storageConfig.options || {}
   );
   const store = new IdempotencyStore(storage, { ttl: config.ttl });
   await store.initialize();

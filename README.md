@@ -25,14 +25,14 @@
 
 ```bash
 # Install
-npm install lsji
+npm install @game_ryo/lsji
 
 # Set your API key (Gemini, OpenAI, or Anthropic)
 export GEMINI_API_KEY="your-gemini-key"
 # or: export OPENAI_API_KEY="your-openai-key"
 
 # Start the runtime server with web UI
-npx lsji serve
+npx @game_ryo/npx @game_ryo/lsji serve
 
 # Open http://localhost:3456 — create runs, watch thought logs, approve actions
 ```
@@ -41,25 +41,25 @@ npx lsji serve
 
 ```bash
 # Runtime server with control panel
-lsji serve --port 3456              # Start server + UI
-lsji serve --no-ui                  # Headless mode
+npx @game_ryo/lsji serve --port 3456              # Start server + UI
+npx @game_ryo/lsji serve --no-ui                  # Headless mode
 
 # Agent operations
-lsji agent run --task "Write a report on AI trends" --provider gemini --model gemini-1.5-flash
-lsji agent run-durable --task "Analyze codebase" --workflow-id my-analysis
+npx @game_ryo/lsji agent run --task "Write a report on AI trends" --provider gemini --model gemini-1.5-flash
+npx @game_ryo/lsji agent run-durable --task "Analyze codebase" --workflow-id my-analysis
 
 # Budget & approvals
-lsji budget status --budgetId my-project
-lsji hitl list                       # Pending approvals
-lsji hitl approve --id <id> --reason "Approved"
+npx @game_ryo/lsji budget status --budgetId my-project
+npx @game_ryo/lsji hitl list                       # Pending approvals
+npx @game_ryo/lsji hitl approve --id <id> --reason "Approved"
 
 # Plugins
-lsji plugin list
-lsji plugin create --name my-tools   # Generate template
+npx @game_ryo/lsji plugin list
+npx @game_ryo/lsji plugin create --name my-tools   # Generate template
 
 # RL (legacy)
-lsji train --episodes 500
-lsji play --hand 0
+npx @game_ryo/lsji train --episodes 500
+npx @game_ryo/lsji play --hand 0
 ```
 
 ## Programmatic Usage
@@ -85,7 +85,7 @@ const server = await startServer({ port: 3456 });
 
 ## Web Control Panel
 
-When you run `lsji serve`, you get a real-time dashboard at **http://localhost:3456**:
+When you run `npx @game_ryo/lsji serve`, you get a real-time dashboard at **http://localhost:3456**:
 
 | Panel | Features |
 |-------|----------|
@@ -117,7 +117,7 @@ export default {
 ```
 
 ```bash
-lsji plugin list  # Shows: my-tools (1 tools)
+npx @game_ryo/lsji plugin list  # Shows: my-tools (1 tools)
 ```
 
 ## Architecture

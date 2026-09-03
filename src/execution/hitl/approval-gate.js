@@ -199,7 +199,9 @@ export class ApprovalGate {
  * Create approval gate from config
  */
 export async function createApprovalGate(config = {}) {
-  const store = await createApprovalStore(config.store || {});
+  // Support both config.store and config.storage for storage configuration
+  const storageConfig = config.storage || config.store || { type: 'sqlite', options: {} };
+  const store = await createApprovalStore(storageConfig);
   const notifier = new Notifier(config.notifier || {});
   
   return new ApprovalGate({

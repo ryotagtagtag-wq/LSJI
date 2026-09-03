@@ -4,7 +4,7 @@
 
 **LSJI** (Learning System for JavaScript Intelligence) is a general-purpose Reinforcement Learning agent framework for Node.js. It provides a clean abstraction for building RL agents with pluggable storage backends, environments, and learning algorithms.
 
-Originally migrated from a Cloudflare Workers implementation (Rock-Paper-Scissors AI), now redesigned as a standalone npm package with Apache 2.0 license, targeting Apache Incubator entry.
+Originally migrated from a Cloudflare Workers implementation (Rock-Paper-Scissors AI), now redesigned as a standalone npm package with MIT license, targeting MIT licensed.
 
 ## Architecture
 
@@ -19,6 +19,23 @@ src/
 │   ├── sqlite.js       # node:sqlite implementation (Node 22+)
 │   ├── better-sqlite.js # better-sqlite3 implementation
 │   └── memory.js       # In-memory implementation
+├── execution/          # Production execution systems
+│   ├── budget/         # TokenCounter, CostTracker, CircuitBreaker
+│   ├── hitl/           # ApprovalGate, ApprovalStore, Notifier
+│   ├── idempotency.js  # Duplicate prevention
+│   └── engine.js       # Durable execution with checkpoints
+├── llm/                # LLM Agent Framework
+│   ├── providers/      # OpenAI, Anthropic, Gemini, Local (Ollama)
+│   ├── llm-agent.js    # ReAct agent with tools & memory
+│   ├── tools/          # Built-in tools (web_search, file_read, file_write, code_exec, api_call, send_email, db_query)
+│   ├── memory/         # Conversation, Semantic, Episodic
+│   ├── plugins/        # Dynamic plugin system
+│   └── prompt-manager.js
+├── server/             # Runtime server + Web UI
+│   ├── index.js        # Express + Socket.io
+│   └── ui/             # React + Vite control panel
+├── envs/
+│   └── rps.js          # Rock-Paper-Scissors environment
 ├── cli.js              # Command-line interface
 └── index.js            # Public API exports
 ```
@@ -59,9 +76,9 @@ Pluggable backends:
 
 ## Usage
 
-### As Library
+### As Library (RL)
 ```javascript
-import { Agent, QLearning, createStorage, Env } from 'lsji';
+import { Agent, QLearning, createStorage, Env } from '@game_ryo/lsji';
 
 // Create custom environment
 class MyEnv extends Env {
@@ -77,23 +94,60 @@ await agent.train({ episodes: 1000 });
 const result = await agent.play(userAction);
 ```
 
+### As Library (LLM Agent)
+```javascript
+import { createLLMAgent, startServer } from '@game_ryo/lsji';
+
+// Create an agent with full production features
+const agent = await createLLMAgent({
+  llm: { provider: 'gemini', model: 'gemini-1.5-flash', apiKey: process.env.GEMINI_API_KEY },
+  budget: { maxCostPerRun: 5, maxCostPerDay: 50 },
+  hitl: { enabled: true, defaultTimeout: 300000 }, // 5 min approval timeout
+  memory: { conversation: true, episodic: true, semantic: true },
+  storage: { type: 'sqlite', options: { path: './lsji.db' } },
+});
+
+const result = await agent.run("Research TypeScript best practices and create a summary");
+console.log(result.answer);
+
+// Or start the full runtime server
+const server = await startServer({ port: 3456 });
+// Visit http://localhost:3456 for the web control panel
+```
+
 ### CLI
 ```bash
 # Install globally or use npx
 npm link  # for local development
 
-# Train
-lsji train --episodes 500 --pattern 0
+# RL Commands
+npx @game_ryo/lsji train --episodes 500 --pattern 0
+npx @game_ryo/lsji play --hand 0  # 0=Rock, 1=Scissors, 2=Paper
+npx @game_ryo/lsji status --json
+npx @game_ryo/lsji start
+npx @game_ryo/lsji stop
 
-# Play
-lsji play --hand 0  # 0=Rock, 1=Scissors, 2=Paper
+# LLM Agent Commands
+npx @game_ryo/lsji agent run --task "Search for latest AI news and summarize" --provider gemini --model gemini-1.5-flash
+npx @game_ryo/lsji agent run-durable --task "Analyze codebase and create report" --workflow-id my-analysis
+npx @game_ryo/lsji agent status
 
-# Status
-lsji status --json
+# Budget & Approvals
+npx @game_ryo/lsji budget status --budgetId my-project
+npx @game_ryo/lsji hitl list                       # Pending approvals
+npx @game_ryo/lsji hitl approve --id <id> --reason "Approved"
 
-# Control
-lsji start
-lsji stop
+# Durability
+npx @game_ryo/lsji checkpoint list
+npx @game_ryo/lsji checkpoint show --workflowId my-analysis
+npx @game_ryo/lsji checkpoint recover --workflowId my-analysis
+
+# Plugins
+npx @game_ryo/lsji plugin list
+npx @game_ryo/lsji plugin create --name my-tools
+
+# Server
+npx @game_ryo/lsji serve --port 3456
 ```
 
 ## Development
@@ -102,20 +156,20 @@ lsji stop
 ```bash
 npm test        # Run tests (vitest)
 npm run build   # No build step (ESM)
+npm run build:ui # Build web UI
+npm run serve   # Start runtime server
 ```
 
 ### Testing
-- Tests use `vitest` with `MemoryStorage` for isolation
-- Run `npm test` to verify all functionality
-
-## Key Design Decisions
+- Tests use `vitest` with `Memo## Key Design Decisions
 
 1. **ESM only** - Uses `"type": "module"` in package.json
 2. **Node 22+** - Requires Node 22 for built-in `node:sqlite`
-3. **Apache 2.0** - License compatible with Apache Incubator
+3. **MIT** - License compatible with open source
 4. **Single package** - All core functionality in one npm package
 5. **Storage abstraction** - Easy to swap backends
 6. **Worker.js compatibility** - Training patterns and reward logic match original
+7. **Production-grade** - HITL, durability, budget controls, idempotency built-in
 
 ## Common Tasks
 
@@ -129,6 +183,11 @@ npm run build   # No build step (ESM)
 2. Implement all abstract methods
 3. Add to `createStorage` factory
 
+### Adding a New LLM Tool
+1. Create tool definition in `src/llm/tools/registry.js` or plugin
+2. Implement `execute` function
+3. Add to tool registry
+
 ### Modifying Learning Algorithm
 - Extend `QLearning` class or create new algorithm in `src/core/`
 
@@ -140,4 +199,14 @@ npm run build   # No build step (ESM)
 
 ## License
 
-Apache 2.0 - see LICENSE file
+MIT - see LICENSE file
+
+## Git Workflow
+
+- Commit messages in English
+- Format: `<type>: <subject>` (e.g., `feat: add new environment base class`)
+- Types: feat, fix, docs, refactor, test, chore
+
+## License
+
+MIT - see LICENSE file

@@ -215,6 +215,7 @@ export async function main() {
             
             console.log(`Running agent on task: ${task}`);
             
+            const storageConfig = { type: storageType, options: { path: dbPath } };
             const agent = await createLLMAgent({
               llm: {
                 provider: options.provider || 'openai',
@@ -234,6 +235,7 @@ export async function main() {
                 semantic: options.semantic === 'true',
                 episodic: options.episodic !== 'false',
               },
+              storage: storageConfig,
             });
             
             const result = await agent.run(task, {
@@ -257,6 +259,7 @@ export async function main() {
             
             console.log(`Running durable agent on task: ${task}`);
             
+            const storageConfig = { type: storageType, options: { path: dbPath } };
             const agent = await createLLMAgent({
               llm: {
                 provider: options.provider || 'openai',
@@ -266,6 +269,7 @@ export async function main() {
               execution: {
                 checkpointInterval: parseInt(options.checkpointInterval) || 3,
               },
+              storage: storageConfig,
             });
             
             const result = await agent.runDurable(task, {
@@ -280,13 +284,16 @@ export async function main() {
           }
           
           case 'status': {
-            const agent = await createLLMAgent({
-              llm: { provider: 'openai', model: 'gpt-4o-mini' },
+            const storageConfig = { type: storageType, options: { path: dbPath } };
+            // Create agent without initializing LLM for status check
+            const { LLMAgent } = await import('./llm/llm-agent.js');
+            const agent = new LLMAgent({
+              llm: { provider: 'local', model: 'test', baseUrl: 'http://localhost:11434/v1' },
+              storage: storageConfig,
             });
-            
+            // Don't initialize - just get status
             const status = agent.getStatus();
             output(status, jsonOutput);
-            await agent.shutdown();
             break;
           }
           
