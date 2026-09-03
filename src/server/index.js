@@ -138,13 +138,16 @@ export function createApp(config = {}) {
         toolRegistry.register({ ...tool, category: 'plugin' });
       }
 
-      // Create LLM agent
+      // Create LLM agent with API key from request
+      const finalApiKey = llm.apiKey || process.env[llm.provider === 'gemini' ? 'GEMINI_API_KEY' : llm.provider === 'openai' ? 'OPENAI_API_KEY' : llm.provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : ''];
+      const storageConfig = { type: config.storage?.type || 'sqlite', options: config.storage?.options || {} };
       const agent = await createLLMAgent({
-        llm,
-        execution: { storage: { type: config.storage?.type || 'sqlite', options: config.storage?.options || {} } },
-        hitl: { enabled: hitl.enabled !== false, defaultTimeout: 300000 },
+        llm: { ...llm, apiKey: finalApiKey },
+        storage: storageConfig,
+        execution: { storage: storageConfig },
+        hitl: { enabled: hitl.enabled !== false, defaultTimeout: 300000, store: storageConfig },
         budget,
-        memory: { conversation: true, episodic: true },
+        memory: { conversation: true, episodic: true, semantic: true },
         tools: { custom: toolRegistry },
       });
 

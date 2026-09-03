@@ -1,33 +1,32 @@
 import React, { useState, useEffect } from 'react';
 
+// Fetch available models from Ollama
+async function fetchLocalModels() {
+  try {
+    const res = await fetch('http://localhost:11434/api/tags');
+    if (res.ok) {
+      const data = await res.json();
+      return data.models?.map(m => ({ value: m.name, label: m.name })) || [];
+    }
+  } catch (e) {
+    // Ollama not running
+  }
+  return [];
+}
+
 // Model definitions per provider (as of 2024 - from official API docs)
 // Source: https://ai.google.dev/gemini-api/docs/models?hl=ja
 const MODELS_BY_PROVIDER = {
   gemini: [
-    // Gemini 3 (Latest)
-    { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro (Preview)' },
-    { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash (Stable)' },
-    { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' },
+    // Current stable models (as of 2025)
+    { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash (Stable) - Best Price/Performance' },
+    { value: 'gemini-3.5-pro', label: 'Gemini 3.5 Pro (Stable) - Best Reasoning' },
+    { value: 'gemini-3.1-flash', label: 'Gemini 3.1 Flash (Preview)' },
+    { value: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro (Preview)' },
     { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite (Preview)' },
-    { value: 'gemini-3.1-flash-image', label: 'Nano Banana 2 (Image Generation)' },
-    { value: 'gemini-3.1-flash-lite-image', label: 'Nano Banana 2 Lite (Image Generation)' },
-    { value: 'gemini-3-pro-image', label: 'Nano Banana Pro (Image Generation)' },
-    { value: 'gemini-3.5-live-translate-preview', label: 'Gemini 3.5 Live Translate (Preview)' },
-    { value: 'gemini-3.1-flash-live-preview', label: 'Gemini 3.1 Flash Live (Preview)' },
-    { value: 'gemini-3.1-flash-tts-preview', label: 'Gemini 3.1 Flash TTS (Preview)' },
-    // Gemini 2.5 Flash
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Stable) - Best Price/Performance' },
-    { value: 'gemini-2.5-flash-image', label: 'Nano Banana (Image Generation)' },
-    { value: 'gemini-2.5-flash-native-audio-preview-12-2025', label: 'Gemini 2.5 Flash Live (Preview)' },
-    { value: 'gemini-2.5-flash-preview-tts', label: 'Gemini 2.5 Flash TTS (Preview)' },
-    // Gemini 2.5 Flash-Lite
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (Preview)' },
-    // Gemini 2.5 Pro
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Stable) - Best Reasoning' },
-    { value: 'gemini-2.5-pro-preview-tts', label: 'Gemini 2.5 Pro TTS (Preview)' },
-    // Legacy (Shutdown)
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Shutdown)' },
-    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash-Lite (Shutdown)' },
+    // Legacy (deprecated)
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Deprecated)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Deprecated)' },
   ],
   openai: [
     { value: 'gpt-4o', label: 'GPT-4o (Latest)' },
@@ -43,19 +42,13 @@ const MODELS_BY_PROVIDER = {
     { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
     { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
   ],
-  local: [
-    { value: 'llama3.2', label: 'Llama 3.2' },
-    { value: 'llama3.1', label: 'Llama 3.1' },
-    { value: 'mistral', label: 'Mistral' },
-    { value: 'codellama', label: 'Code Llama' },
-    { value: 'qwen2.5', label: 'Qwen 2.5' },
-    { value: 'phi3.5', label: 'Phi 3.5' },
-  ],
+  // Local models are fetched dynamically from Ollama
+  local: [],
 };
 
 // Default models per provider
 const DEFAULT_MODELS = {
-  gemini: 'gemini-2.5-flash', // Best price/performance for general use
+  gemini: 'gemini-3.5-flash', // Current stable
   openai: 'gpt-4o-mini',
   anthropic: 'claude-3-5-sonnet-20241022',
   local: 'llama3.2',
@@ -64,8 +57,10 @@ const DEFAULT_MODELS = {
 function NewRunModal({ onClose, onStart }) {
   const [task, setTask] = useState('');
   const [workflowId, setWorkflowId] = useState('');
-  const [provider, setProvider] = useState('gemini'); // Default to Gemini
+  const [provider, setProvider] = useState('gemini');
   const [model, setModel] = useState(DEFAULT_MODELS.gemini);
+  const [apiKey, setApiKey] = useState('');
+  const [localModels, setLocalModels] = useState([]);
   const [maxCost, setMaxCost] = useState(10);
   const [maxTokens, setMaxTokens] = useState(100000);
   const [hitlEnabled, setHitlEnabled] = useState(true);
@@ -74,6 +69,18 @@ function NewRunModal({ onClose, onStart }) {
   // Update model when provider changes
   useEffect(() => {
     setModel(DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini);
+  }, [provider]);
+
+  // Fetch local models when provider is 'local'
+  useEffect(() => {
+    if (provider === 'local') {
+      fetchLocalModels().then(models => {
+        if (models.length > 0) {
+          setLocalModels(models);
+          setModel(models[0].value);
+        }
+      });
+    }
   }, [provider]);
 
   const handleSubmit = async (e) => {
@@ -85,7 +92,7 @@ function NewRunModal({ onClose, onStart }) {
       await onStart({
         task: task.trim(),
         workflowId: workflowId.trim() || undefined,
-        llm: { provider, model },
+        llm: { provider, model, apiKey: apiKey || undefined },
         budget: { maxCostPerRun: maxCost, maxTokensPerRun: maxTokens },
         hitl: { enabled: hitlEnabled },
       });
@@ -133,15 +140,34 @@ function NewRunModal({ onClose, onStart }) {
                 <option value="local">Local (Ollama)</option>
               </select>
             </div>
+
+            {provider !== 'local' && (
+              <div className="form-group">
+                <label className="form-label">API Key (or set env var)</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder={provider === 'gemini' ? 'GEMINI_API_KEY' : provider === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY'}
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                />
+                <span className="form-hint">Leave empty to use environment variable</span>
+              </div>
+            )}
             <div className="form-group">
               <label className="form-label">Model</label>
               <select className="form-select" value={model} onChange={(e) => setModel(e.target.value)}>
-                {currentModels.map(m => (
+                {(provider === 'local' ? localModels : currentModels).map(m => (
                   <option key={m.value} value={m.value}>
                     {m.label}
                   </option>
                 ))}
               </select>
+              {provider === 'local' && localModels.length === 0 && (
+                <span className="form-hint" style={{color: 'var(--warning)'}}>
+                  No local models found. Make sure Ollama is running at http://localhost:11434
+                </span>
+              )}
             </div>
           </div>
 

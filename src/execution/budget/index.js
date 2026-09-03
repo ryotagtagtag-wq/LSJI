@@ -54,6 +54,22 @@ export function createBudgetController(config = {}) {
     },
     
     /**
+     * Record cost/usage after operation (alias for recordUsage)
+     * Supports both recordCost(budgetId, usage) and recordCost({ budgetId, ...usage })
+     */
+    recordCost(budgetId, usage) {
+      // Handle both calling conventions:
+      // 1. recordCost(budgetId, usageObj)
+      // 2. recordCost({ budgetId, ...usageObj })
+      if (usage === undefined && budgetId && typeof budgetId === 'object') {
+        // Called as recordCost({ budgetId, ...usage })
+        const obj = budgetId;
+        return this.recordUsage(obj.budgetId, obj);
+      }
+      return this.recordUsage(budgetId, usage);
+    },
+    
+    /**
      * Reset run budget
      */
     resetRunBudget(budgetId) {
