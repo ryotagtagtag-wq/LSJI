@@ -22,7 +22,7 @@ function App() {
   // Initialize socket connection
   useEffect(() => {
     const newSocket = io(window.location.origin, {
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'], // Use only websocket to avoid localStorage issues in private browsing
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -31,6 +31,16 @@ function App() {
     newSocket.on('connect', () => {
       setConnected(true);
       console.log('Connected to LSJI server');
+    });
+
+    newSocket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err.message);
+      // If websocket fails, try with polling as fallback
+      const transports = newSocket.io.opts.transports;
+      if (Array.isArray(transports) && transports.length === 1 && transports[0] === 'websocket') {
+        console.log('Retrying with polling transport...');
+        newSocket.io.opts.transports = ['polling', 'websocket'];
+      }
     });
 
     newSocket.on('disconnect', () => {

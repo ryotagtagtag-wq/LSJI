@@ -65,6 +65,7 @@ function NewRunModal({ onClose, onStart }) {
   const [maxTokens, setMaxTokens] = useState(100000);
   const [hitlEnabled, setHitlEnabled] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   // Update model when provider changes
   useEffect(() => {
@@ -88,6 +89,7 @@ function NewRunModal({ onClose, onStart }) {
     if (!task.trim()) return;
     
     setSubmitting(true);
+    setError('');
     try {
       await onStart({
         task: task.trim(),
@@ -96,6 +98,8 @@ function NewRunModal({ onClose, onStart }) {
         budget: { maxCostPerRun: maxCost, maxTokensPerRun: maxTokens },
         hitl: { enabled: hitlEnabled },
       });
+    } catch (err) {
+      setError(err.message || 'Failed to start run');
     } finally {
       setSubmitting(false);
     }
@@ -108,6 +112,11 @@ function NewRunModal({ onClose, onStart }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2 className="modal-title">Create New Agent Run</h2>
         <form onSubmit={handleSubmit}>
+          {error && (
+            <div className="form-error" style={{color: 'var(--danger)', marginBottom: '12px', padding: '8px', background: 'rgba(255,0,0,0.1)', borderRadius: '4px', fontSize: '13px'}}>
+              {error}
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Task Description *</label>
             <textarea
