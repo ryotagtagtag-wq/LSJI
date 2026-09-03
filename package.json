@@ -1,6 +1,6 @@
 {
   "name": "@game_ryo/lsji",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "A general-purpose reinforcement learning agent framework (Node.js) with LLM agent capabilities",
   "license": "MIT",
   "type": "module",
