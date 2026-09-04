@@ -184,6 +184,7 @@ export class LLMAgent {
           maxTokens: 4096,
         });
         
+
         // Record token usage
         if (this.memory.episodic) {
           this.memory.episodic.recordTokens(response.usage?.totalTokens || 0);
@@ -270,15 +271,34 @@ export class LLMAgent {
         }
         
         // No tool calls - check if final answer
-        if (response.content && !response.content.includes('THOUGHT:') && !response.content.includes('ACTION:')) {
+        // Don't treat empty/whitespace-only content as final answer
+        const hasContent = response.content && response.content.trim().length > 0;
+        const isReActFormat = response.content && (response.content.includes('THOUGHT:') || response.content.includes('ACTION:'));
+        const isFinalAnswer = hasContent && !isReActFormat;
+        
+        if (isFinalAnswer) {
           finalAnswer = response.content;
           break;
         }
         
-        // Parse ReAct format if present
-        if (response.content.includes('THOUGHT:') || response.content.includes('ACTION:')) {
+        // Parse ReAct format if present (THOUGHT: or ACTION:)
+        if (isReActFormat) {
           // This is a ReAct formatted response without tool calls
-          // Continue to next iteration
+          // Check if it contains a final answer indicator
+          if (response.content.includes('FINAL ANSWER:') || response.content.includes('Final Answer:')) {
+            // Extract the final answer part
+            const finalAnswerMatch = response.content.match(/(?:FINAL ANSWER:|Final Answer:)\s*(.+)/i);
+            if (finalAnswerMatch) {
+              finalAnswer = finalAnswerMatch[1].trim();
+              break;
+            }
+          }
+          // Continue to next iteration for more ReAct steps
+          continue;
+        }
+        
+        // Skip empty responses
+        if (!hasContent) {
           continue;
         }
         
