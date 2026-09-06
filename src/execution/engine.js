@@ -46,7 +46,7 @@ export class ExecutionEngine {
    * Check if storage is SQL-based (has db with all method)
    */
   isSqlStorage() {
-    return this.storage.db && typeof this.storage.db.all === 'function';
+    return this.storage && typeof this.storage.all === 'function';
   }
 
   /**
@@ -56,7 +56,7 @@ export class ExecutionEngine {
     if (this.initialized) return;
     
     if (this.isSqlStorage()) {
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE TABLE IF NOT EXISTS checkpoints (
           id TEXT PRIMARY KEY,
           workflow_id TEXT NOT NULL,
@@ -68,11 +68,11 @@ export class ExecutionEngine {
         )
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_checkpoints_workflow ON checkpoints(workflow_id)
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_checkpoints_created ON checkpoints(created_at)
       `);
     }
@@ -247,7 +247,7 @@ export class ExecutionEngine {
     };
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `INSERT INTO checkpoints (id, workflow_id, step, state, context, created_at, parent_id)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [checkpoint.id, checkpoint.workflowId, checkpoint.step, checkpoint.state, 
@@ -268,7 +268,7 @@ export class ExecutionEngine {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const row = await this.storage.db.get('SELECT * FROM checkpoints WHERE id = ?', [id]);
+      const row = await this.storage.get('SELECT * FROM checkpoints WHERE id = ?', [id]);
       if (!row) return null;
       return {
         id: row.id,
@@ -291,7 +291,7 @@ export class ExecutionEngine {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const rows = await this.storage.db.all(
+      const rows = await this.storage.all(
         'SELECT * FROM checkpoints WHERE workflow_id = ? ORDER BY step ASC',
         [workflowId]
       );
@@ -349,7 +349,7 @@ export class ExecutionEngine {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const rows = await this.storage.db.all(`
+      const rows = await this.storage.all(`
         SELECT workflow_id, MAX(step) as last_step, MAX(created_at) as last_checkpoint
         FROM checkpoints
         GROUP BY workflow_id
@@ -388,7 +388,7 @@ export class ExecutionEngine {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run('DELETE FROM checkpoints WHERE workflow_id = ?', [workflowId]);
+      await this.storage.run('DELETE FROM checkpoints WHERE workflow_id = ?', [workflowId]);
     } else {
       for (const [key, cp] of this.memoryCheckpoints?.entries() || []) {
         if (cp.workflowId === workflowId) {

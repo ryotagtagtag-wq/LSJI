@@ -33,10 +33,10 @@ export class IdempotencyStore {
   }
 
   /**
-   * Check if storage is SQL-based
+   * Check if storage is SQL-based (has db with all method)
    */
   isSqlStorage() {
-    return this.storage.db && typeof this.storage.db.all === 'function';
+    return this.storage && this.storage.db && typeof this.storage.db.all === 'function';
   }
 
   /**
@@ -46,7 +46,7 @@ export class IdempotencyStore {
     if (this.initialized) return;
     
     if (this.isSqlStorage()) {
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE TABLE IF NOT EXISTS idempotency_keys (
           key TEXT PRIMARY KEY,
           operation TEXT NOT NULL,
@@ -60,11 +60,11 @@ export class IdempotencyStore {
         )
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys(expires_at)
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_idempotency_operation ON idempotency_keys(operation)
       `);
     }
@@ -117,7 +117,7 @@ export class IdempotencyStore {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const row = await this.storage.db.get(
+      const row = await this.storage.get(
         'SELECT * FROM idempotency_keys WHERE key = ? AND expires_at > ?',
         [key, new Date().toISOString()]
       );
@@ -176,7 +176,7 @@ export class IdempotencyStore {
     };
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `INSERT INTO idempotency_keys (key, operation, request_hash, request_data, response_data, status, created_at, completed_at, expires_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [key, operation, requestHash, record.requestData, null, 'pending', createdAt, null, expiresAt]
@@ -199,7 +199,7 @@ export class IdempotencyStore {
     const responseData = JSON.stringify(response);
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `UPDATE idempotency_keys SET status = ?, response_data = ?, completed_at = ? WHERE key = ?`,
         ['completed', responseData, completedAt, key]
       );
@@ -224,7 +224,7 @@ export class IdempotencyStore {
     const errorData = JSON.stringify({ error: error.message || String(error) });
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `UPDATE idempotency_keys SET status = ?, response_data = ?, completed_at = ? WHERE key = ?`,
         ['failed', errorData, completedAt, key]
       );
@@ -288,7 +288,7 @@ export class IdempotencyStore {
     const now = new Date().toISOString();
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         'DELETE FROM idempotency_keys WHERE expires_at < ?',
         [now]
       );
@@ -308,7 +308,7 @@ export class IdempotencyStore {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const rows = await this.storage.db.all(
+      const rows = await this.storage.all(
         'SELECT * FROM idempotency_keys WHERE operation = ? ORDER BY created_at DESC LIMIT ?',
         [operation, limit]
       );

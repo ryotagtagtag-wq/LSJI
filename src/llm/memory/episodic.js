@@ -40,8 +40,9 @@ export class EpisodicMemory {
   async initialize() {
     if (this.initialized) return;
     
+    
     if (this.storage.db) {
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE TABLE IF NOT EXISTS episodes (
           id TEXT PRIMARY KEY,
           task TEXT NOT NULL,
@@ -58,15 +59,15 @@ export class EpisodicMemory {
         )
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_episodes_outcome ON episodes(outcome)
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_episodes_started ON episodes(started_at)
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_episodes_tags ON episodes(tags)
       `);
     }
@@ -130,7 +131,7 @@ export class EpisodicMemory {
     
     // Persist
     if (this.storage.db) {
-      await this.storage.db.run(
+      await this.storage.run(
         `INSERT INTO episodes (id, task, steps, outcome, context, result, duration, tokens_used, cost, started_at, completed_at, tags)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -183,7 +184,7 @@ export class EpisodicMemory {
     await this.initialize();
     
     if (this.storage.db) {
-      const row = await this.storage.db.get('SELECT * FROM episodes WHERE id = ?', [id]);
+      const row = await this.storage.get('SELECT * FROM episodes WHERE id = ?', [id]);
       if (!row) return null;
       return this.rowToEpisode(row);
     } else {
@@ -224,7 +225,7 @@ export class EpisodicMemory {
       sql += ' ORDER BY started_at DESC LIMIT ?';
       params.push(limit);
       
-      const rows = await this.storage.db.all(sql, params);
+      const rows = await this.storage.all(sql, params);
       results = rows.map(r => this.rowToEpisode(r));
     } else {
       for (const ep of this.memoryEpisodes?.values() || []) {
@@ -264,7 +265,7 @@ export class EpisodicMemory {
     await this.initialize();
     
     if (this.storage.db) {
-      const row = await this.storage.db.get(`
+      const row = await this.storage.get(`
         SELECT 
           COUNT(*) as total,
           SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END) as successes,
@@ -307,6 +308,7 @@ export async function createEpisodicMemory(config = {}) {
     config.storage?.type || 'sqlite',
     config.storage?.options || {}
   );
+  await storage.initialize();
   
   return new EpisodicMemory({ storage });
 }

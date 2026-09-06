@@ -263,6 +263,7 @@ export async function createConversationMemory(config = {}) {
     config.storage?.type || 'sqlite',
     config.storage?.options || {}
   );
+  await storage.initialize();
   
   return new ConversationMemory({
     storage,

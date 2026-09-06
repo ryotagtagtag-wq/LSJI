@@ -36,8 +36,9 @@ export class SemanticMemory {
   async initialize() {
     if (this.initialized) return;
     
+    
     if (this.storage.db) {
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE TABLE IF NOT EXISTS knowledge (
           id TEXT PRIMARY KEY,
           content TEXT NOT NULL,
@@ -50,11 +51,11 @@ export class SemanticMemory {
         )
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_knowledge_tags ON knowledge(tags)
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_knowledge_created ON knowledge(created_at)
       `);
     }
@@ -88,7 +89,7 @@ export class SemanticMemory {
     };
     
     if (this.storage.db) {
-      await this.storage.db.run(
+      await this.storage.run(
         `INSERT INTO knowledge (id, content, tags, metadata, embedding, created_at, updated_at, access_count)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [entry.id, entry.content, entry.tags, entry.metadata, entry.embedding, entry.createdAt, entry.updatedAt, entry.accessCount]
@@ -125,7 +126,7 @@ export class SemanticMemory {
       sql += ' ORDER BY access_count DESC, created_at DESC LIMIT ?';
       params.push(limit);
       
-      const rows = await this.storage.db.all(sql, params);
+      const rows = await this.storage.all(sql, params);
       
       for (const row of rows) {
         results.push(this.rowToEntry(row));
@@ -171,7 +172,7 @@ export class SemanticMemory {
     await this.initialize();
     
     if (this.storage.db) {
-      const row = await this.storage.db.get('SELECT * FROM knowledge WHERE id = ?', [id]);
+      const row = await this.storage.get('SELECT * FROM knowledge WHERE id = ?', [id]);
       if (!row) return null;
       return this.rowToEntry(row);
     } else {
@@ -222,7 +223,7 @@ export class SemanticMemory {
     params.push(id);
     
     if (this.storage.db) {
-      await this.storage.db.run(
+      await this.storage.run(
         `UPDATE knowledge SET ${updates.join(', ')} WHERE id = ?`,
         params
       );
@@ -240,7 +241,7 @@ export class SemanticMemory {
     await this.initialize();
     
     if (this.storage.db) {
-      await this.storage.db.run('DELETE FROM knowledge WHERE id = ?', [id]);
+      await this.storage.run('DELETE FROM knowledge WHERE id = ?', [id]);
     } else {
       this.memoryKnowledge?.delete(id);
     }
@@ -253,7 +254,7 @@ export class SemanticMemory {
     await this.initialize();
     
     if (this.storage.db) {
-      await this.storage.db.run(
+      await this.storage.run(
         'UPDATE knowledge SET access_count = access_count + 1 WHERE id = ?',
         [id]
       );
@@ -287,7 +288,7 @@ export class SemanticMemory {
       sql += ' ORDER BY created_at DESC LIMIT ?';
       params.push(limit);
       
-      const rows = await this.storage.db.all(sql, params);
+      const rows = await this.storage.all(sql, params);
       return rows.map(r => this.rowToEntry(r));
     }
     
@@ -316,6 +317,7 @@ export async function createSemanticMemory(config = {}) {
     config.storage?.type || 'sqlite',
     config.storage?.options || {}
   );
+  await storage.initialize();
   
   return new SemanticMemory({
     storage,

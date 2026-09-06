@@ -36,7 +36,7 @@ export class ApprovalStore {
    * Check if storage is SQL-based (has db with all method)
    */
   isSqlStorage() {
-    return this.storage.db && typeof this.storage.db.all === 'function';
+    return this.storage && typeof this.storage.all === 'function';
   }
 
   /**
@@ -47,7 +47,7 @@ export class ApprovalStore {
     
     // Create approvals table if using SQL storage
     if (this.isSqlStorage()) {
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE TABLE IF NOT EXISTS approvals (
           id TEXT PRIMARY KEY,
           action TEXT NOT NULL,
@@ -64,11 +64,11 @@ export class ApprovalStore {
       `);
       
       // Create index for pending approvals
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status)
       `);
       
-      await this.storage.db.exec(`
+      await this.storage.exec(`
         CREATE INDEX IF NOT EXISTS idx_approvals_created ON approvals(created_at)
       `);
     }
@@ -97,7 +97,7 @@ export class ApprovalStore {
     };
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `INSERT INTO approvals (id, action, context, requester, status, created_at, expires_at, decided_at, decider, reason, metadata)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [record.id, record.action, record.context, record.requester, record.status,
@@ -119,7 +119,7 @@ export class ApprovalStore {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const row = await this.storage.db.get('SELECT * FROM approvals WHERE id = ?', [id]);
+      const row = await this.storage.get('SELECT * FROM approvals WHERE id = ?', [id]);
       if (!row) return null;
       return this.rowToRecord(row);
     } else {
@@ -134,7 +134,7 @@ export class ApprovalStore {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const rows = await this.storage.db.all(
+      const rows = await this.storage.all(
         'SELECT * FROM approvals WHERE status = ? ORDER BY created_at DESC LIMIT ?',
         ['pending', limit]
       );
@@ -157,7 +157,7 @@ export class ApprovalStore {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      const rows = await this.storage.db.all(
+      const rows = await this.storage.all(
         'SELECT * FROM approvals WHERE requester = ? ORDER BY created_at DESC LIMIT ?',
         [requester, limit]
       );
@@ -202,7 +202,7 @@ export class ApprovalStore {
     const decidedAt = new Date().toISOString();
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `UPDATE approvals SET status = ?, decided_at = ?, decider = ?, reason = ? WHERE id = ?`,
         [status, decidedAt, decider, reason, id]
       );
@@ -238,7 +238,7 @@ export class ApprovalStore {
     await this.initialize();
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `UPDATE approvals SET status = ?, decided_at = ?, decider = ?, reason = ? WHERE id = ?`,
         [status, new Date().toISOString(), decider, reason, id]
       );
@@ -263,7 +263,7 @@ export class ApprovalStore {
     const now = new Date().toISOString();
     
     if (this.isSqlStorage()) {
-      await this.storage.db.run(
+      await this.storage.run(
         `UPDATE approvals SET status = 'expired' WHERE status = 'pending' AND expires_at < ?`,
         [now]
       );
