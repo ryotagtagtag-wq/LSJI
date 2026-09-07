@@ -96,4 +96,4 @@ export {
 } from './llm/plugins/index.js';
 
 // Version
-export const VERSION = '1.2.5';
+export const VERSION = '1.2.6';
